@@ -2,64 +2,52 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Comment;
 use App\Models\Like;
+use App\Models\Post;
+use App\Models\CommentLike;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class LikeController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function storePost(Request $request, Post $post): RedirectResponse
     {
-        //
+        Like::query()->firstOrCreate([
+            'user_id' => $request->user()->id,
+            'post_id' => $post->id,
+        ]);
+
+        return redirect()->back()->with('status', 'Post liked.');
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function destroyPost(Request $request, Post $post): RedirectResponse
     {
-        //
+        Like::query()
+            ->where('user_id', $request->user()->id)
+            ->where('post_id', $post->id)
+            ->delete();
+
+        return redirect()->back()->with('status', 'Post like removed.');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function storeComment(Request $request, Comment $comment): RedirectResponse
     {
-        //
+        CommentLike::query()->firstOrCreate([
+            'user_id' => $request->user()->id,
+            'comment_id' => $comment->id,
+        ]);
+
+        return redirect()->back()->with('status', 'Comment liked.');
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Like $like)
+    public function destroyComment(Request $request, Comment $comment): RedirectResponse
     {
-        //
-    }
+        CommentLike::query()
+            ->where('user_id', $request->user()->id)
+            ->where('comment_id', $comment->id)
+            ->delete();
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Like $like)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Like $like)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Like $like)
-    {
-        //
+        return redirect()->back()->with('status', 'Comment like removed.');
     }
 }

@@ -12,7 +12,7 @@ class RoleController extends Controller
      */
     public function index()
     {
-        //
+        return redirect('/home');
     }
 
     /**
@@ -20,7 +20,7 @@ class RoleController extends Controller
      */
     public function create()
     {
-        //
+        return redirect('/home');
     }
 
     /**
@@ -28,7 +28,13 @@ class RoleController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:roles,name'],
+        ]);
+
+        Role::create($validated);
+
+        return redirect('/home')->with('status', 'Role created.');
     }
 
     /**
@@ -36,7 +42,7 @@ class RoleController extends Controller
      */
     public function show(Role $role)
     {
-        //
+        return redirect('/home');
     }
 
     /**
@@ -44,7 +50,7 @@ class RoleController extends Controller
      */
     public function edit(Role $role)
     {
-        //
+        return redirect('/home');
     }
 
     /**
@@ -52,7 +58,13 @@ class RoleController extends Controller
      */
     public function update(Request $request, Role $role)
     {
-        //
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255', 'unique:roles,name,'.$role->id],
+        ]);
+
+        $role->update($validated);
+
+        return redirect('/home')->with('status', 'Role updated.');
     }
 
     /**
@@ -60,6 +72,8 @@ class RoleController extends Controller
      */
     public function destroy(Role $role)
     {
-        //
+        $role->delete();
+
+        return redirect('/home')->with('status', 'Role deleted.');
     }
 }

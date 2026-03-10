@@ -4,7 +4,9 @@ import { useState } from 'react';
 type RegisterForm = {
     first_name: string;
     last_name: string;
+    username: string;
     email: string;
+    birth_date: string;
     password: string;
     password_confirmation: string;
     picture: File | null;
@@ -14,7 +16,9 @@ export default function Register() {
     const { data, setData, processing, errors, post } = useForm<RegisterForm>({
         first_name: '',
         last_name: '',
+        username: '',
         email: '',
+        birth_date: '',
         password: '',
         password_confirmation: '',
         picture: null,
@@ -80,6 +84,22 @@ export default function Register() {
                         </div>
 
                         <div className="space-y-2">
+                            <label htmlFor="username" className="text-sm font-medium text-slate-200">
+                                Username
+                            </label>
+                            <input
+                                id="username"
+                                name="username"
+                                value={data.username}
+                                onChange={(e) => setData('username', e.target.value)}
+                                placeholder="hamzasabbagh"
+                                required
+                                className="w-full rounded-xl border border-white/20 bg-slate-950/70 px-4 py-3 text-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/40"
+                            />
+                            {errors.username && <p className="text-sm text-rose-300">{errors.username}</p>}
+                        </div>
+
+                        <div className="space-y-2">
                             <label htmlFor="email" className="text-sm font-medium text-slate-200">
                                 Email
                             </label>
@@ -95,6 +115,22 @@ export default function Register() {
                                 className="w-full rounded-xl border border-white/20 bg-slate-950/70 px-4 py-3 text-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/40"
                             />
                             {errors.email && <p className="text-sm text-rose-300">{errors.email}</p>}
+                        </div>
+
+                        <div className="space-y-2">
+                            <label htmlFor="birth_date" className="text-sm font-medium text-slate-200">
+                                Birth date
+                            </label>
+                            <input
+                                id="birth_date"
+                                name="birth_date"
+                                type="date"
+                                value={data.birth_date}
+                                onChange={(e) => setData('birth_date', e.target.value)}
+                                required
+                                className="w-full rounded-xl border border-white/20 bg-slate-950/70 px-4 py-3 text-sm outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/40"
+                            />
+                            {errors.birth_date && <p className="text-sm text-rose-300">Only Users Over 18 Can Register.</p>}
                         </div>
 
                         <div className="space-y-2">

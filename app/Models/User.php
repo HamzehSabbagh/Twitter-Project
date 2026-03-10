@@ -41,9 +41,39 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsToMany(User::class, 'user_follows', 'follower_id', 'following_id');
     }
 
-    public function follower()
+    public function followers()
     {
         return $this->belongsToMany(User::class, 'user_follows', 'following_id', 'follower_id');
+    }
+
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function posts()
+    {
+        return $this->hasMany(Post::class);
+    }
+
+    public function comments()
+    {
+        return $this->hasMany(Comment::class);
+    }
+
+    public function likes()
+    {
+        return $this->hasMany(Like::class);
+    }
+
+    public function commentLikes()
+    {
+        return $this->hasMany(CommentLike::class);
+    }
+
+    public function reposts()
+    {
+        return $this->hasMany(Repost::class);
     }
 
     /**
@@ -71,6 +101,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'birth_date' => 'date',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];

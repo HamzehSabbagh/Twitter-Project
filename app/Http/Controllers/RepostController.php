@@ -2,64 +2,35 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Post;
 use App\Models\Repost;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class RepostController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function storePost(Request $request, Post $post): RedirectResponse
     {
-        //
+        Repost::query()->firstOrCreate(
+            [
+                'user_id' => $request->user()->id,
+                'post_id' => $post->id,
+            ],
+            [
+                'comment' => null,
+            ]
+        );
+
+        return redirect()->back()->with('status', 'Post reposted.');
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function destroyPost(Request $request, Post $post): RedirectResponse
     {
-        //
-    }
+        Repost::query()
+            ->where('user_id', $request->user()->id)
+            ->where('post_id', $post->id)
+            ->delete();
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(Repost $repost)
-    {
-        //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Repost $repost)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Repost $repost)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Repost $repost)
-    {
-        //
+        return redirect()->back()->with('status', 'Repost removed.');
     }
 }
