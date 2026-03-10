@@ -35,4 +35,9 @@ class Post extends Model
     public function media(){
         return $this->hasMany(PostMedia::class);
     }
+
+    public function mentions()
+    {
+        return $this->hasMany(Mention::class);
+    }
 }

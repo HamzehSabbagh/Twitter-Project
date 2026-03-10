@@ -6,16 +6,25 @@ use App\Models\Hashtag;
 use App\Models\Post;
 use App\Models\PostMedia;
 use App\Models\Repost;
+use App\Support\MentionManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class PostController extends Controller
 {
+    public function __construct(private MentionManager $mentionManager)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -112,6 +121,7 @@ class PostController extends Controller
 
             $this->storeMediaFiles($request->file('media', []), $post);
             $post->hashtags()->sync($this->resolveHashtagIds($validated['content'] ?? null));
+            $this->mentionManager->syncPostMentions($post, $request->user()->id, $validated['content'] ?? null);
         });
 
         return redirect()->route('home')->with('status', 'Post created.');
@@ -196,6 +206,8 @@ class PostController extends Controller
                     'created_at' => $comment->created_at?->toDateTimeString(),
                     'likes_count' => $comment->likes_count,
                     'liked_by_user' => $comment->likes->isNotEmpty(),
+                    'can_edit' => $comment->user_id === $userId || $isAdmin,
+                    'can_delete' => $comment->user_id === $userId || $isAdmin,
                     'user' => [
                         'first_name' => $comment->user?->first_name,
                         'last_name' => $comment->user?->last_name,
@@ -211,6 +223,8 @@ class PostController extends Controller
                         'created_at' => $reply->created_at?->toDateTimeString(),
                         'likes_count' => $reply->likes_count,
                         'liked_by_user' => $reply->likes->isNotEmpty(),
+                        'can_edit' => $reply->user_id === $userId || $isAdmin,
+                        'can_delete' => $reply->user_id === $userId || $isAdmin,
                         'user' => [
                             'first_name' => $reply->user?->first_name,
                             'last_name' => $reply->user?->last_name,
@@ -258,7 +272,7 @@ class PostController extends Controller
     {
         abort_unless($request->user()?->id === $post->user_id, 403);
 
-        $validated = $this->validatePostPayload($request);
+        $validated = $this->validatePostPayload($request, $post);
 
         DB::transaction(function () use ($request, $validated, $post) {
             $post->update([
@@ -266,11 +280,30 @@ class PostController extends Controller
                 'parent_id' => $validated['parent_id'] ?? null,
             ]);
 
+            $this->removeMediaFiles($validated['remove_media'] ?? [], $post);
             $this->storeMediaFiles($request->file('media', []), $post);
             $post->hashtags()->sync($this->resolveHashtagIds($validated['content'] ?? null));
+            $this->mentionManager->syncPostMentions($post, $request->user()->id, $validated['content'] ?? null);
         });
 
         return redirect()->route('home')->with('status', 'Post updated.');
+    }
+
+    /**
+     * @param  array<int, int|string>  $mediaIds
+     */
+    private function removeMediaFiles(array $mediaIds, Post $post): void
+    {
+        if ($mediaIds === []) {
+            return;
+        }
+
+        $mediaItems = $post->media()->whereIn('id', $mediaIds)->get();
+
+        foreach ($mediaItems as $media) {
+            Storage::disk('public')->delete($media->path);
+            $media->delete();
+        }
     }
 
     /**
@@ -305,7 +338,7 @@ class PostController extends Controller
             $mimeType = $file->getMimeType() ?? 'application/octet-stream';
             $category = explode('/', $mimeType)[0] ?? 'file';
             $type = in_array($category, ['image', 'video', 'audio'], true) ? $category : 'file';
-            $path = $file->store("posts/{$post->id}", 'public');
+            $path = $this->storeUploadedFile($file, $post, $type);
 
             PostMedia::create([
                 'post_id' => $post->id,
@@ -313,22 +346,99 @@ class PostController extends Controller
                 'path' => $path,
                 'mime_type' => $mimeType,
                 'duration_seconds' => null,
-                'size_bytes' => $file->getSize(),
+                'size_bytes' => Storage::disk('public')->size($path),
             ]);
         }
+    }
+
+    private function storeUploadedFile(UploadedFile $file, Post $post, string $type): string
+    {
+        if ($type === 'video' && $this->shouldOptimizeVideo($file)) {
+            $optimizedPath = $this->optimizeVideoForFastStart($file, $post);
+
+            if ($optimizedPath !== null) {
+                return $optimizedPath;
+            }
+        }
+
+        return $file->store("posts/{$post->id}", 'public');
+    }
+
+    private function shouldOptimizeVideo(UploadedFile $file): bool
+    {
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        return $extension === 'mp4' || ($file->getMimeType() ?? '') === 'video/mp4';
+    }
+
+    private function optimizeVideoForFastStart(UploadedFile $file, Post $post): ?string
+    {
+        $disk = Storage::disk('public');
+        $directory = "posts/{$post->id}";
+        $relativePath = "{$directory}/".Str::uuid().'.mp4';
+        $absolutePath = $disk->path($relativePath);
+
+        $disk->makeDirectory($directory);
+
+        $process = Process::timeout(300)->run([
+            $this->ffmpegBinary(),
+            '-y',
+            '-i',
+            $file->getRealPath(),
+            '-movflags',
+            '+faststart',
+            '-c',
+            'copy',
+            $absolutePath,
+        ]);
+
+        if ($process->successful()) {
+            return $relativePath;
+        }
+
+        if (file_exists($absolutePath)) {
+            @unlink($absolutePath);
+        }
+
+        Log::warning('FFmpeg faststart optimization failed for uploaded video.', [
+            'post_id' => $post->id,
+            'file_name' => $file->getClientOriginalName(),
+            'error' => $process->errorOutput(),
+        ]);
+
+        return null;
+    }
+
+    private function ffmpegBinary(): string
+    {
+        return (string) (config('app.ffmpeg_binary') ?: env('FFMPEG_BINARY', 'ffmpeg'));
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function validatePostPayload(Request $request): array
+    private function validatePostPayload(Request $request, ?Post $post = null): array
     {
-        return $request->validate(
+        $rules = [
+            'content' => ['nullable', 'string'],
+            'parent_id' => ['nullable', 'exists:posts,id'],
+            'media' => ['nullable', 'array', 'max:4'],
+            'media.*' => ['file', 'max:51200', 'mimetypes:image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/webm'],
+            'remove_media' => ['nullable', 'array'],
+            'remove_media.*' => ['integer'],
+        ];
+
+        if ($post) {
+            $rules['remove_media.*'][] = Rule::exists('post_media', 'id')->where(
+                fn ($query) => $query->where('post_id', $post->id)
+            );
+        } else {
+            $rules['content'][] = 'required_without:media';
+        }
+
+        $validated = $request->validate(
             [
-                'content' => ['nullable', 'string', 'required_without:media'],
-                'parent_id' => ['nullable', 'exists:posts,id'],
-                'media' => ['nullable', 'array', 'max:4'],
-                'media.*' => ['file', 'max:51200', 'mimetypes:image/jpeg,image/png,image/webp,video/mp4,video/webm,audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/webm'],
+                ...$rules,
             ],
             [
                 'media.max' => 'You can upload up to 4 files per post.',
@@ -340,6 +450,20 @@ class PostController extends Controller
                 'media.*' => 'file',
             ],
         );
+
+        if ($post) {
+            $uploadedMedia = $request->file('media', []);
+            $uploadedMediaCount = $uploadedMedia instanceof UploadedFile ? 1 : count($uploadedMedia ?? []);
+            $remainingMediaCount = $post->media()->count() - count($validated['remove_media'] ?? []) + $uploadedMediaCount;
+
+            if (blank($validated['content'] ?? null) && $remainingMediaCount <= 0) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'content' => 'Write something or keep at least one file attached.',
+                ]);
+            }
+        }
+
+        return $validated;
     }
 
     /**

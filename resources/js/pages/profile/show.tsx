@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { TextWithMentions } from '@/components/text-with-mentions';
 
 type ProfilePageProps = {
     profile: {
@@ -162,9 +163,10 @@ export default function ShowProfile({ profile }: ProfilePageProps) {
                         {profile.posts.map((post) => (
                             <article key={post.id} className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
                                 <Link href={`/post/${post.id}`} className="block">
-                                    <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">
-                                        {post.content || 'Media-only post'}
-                                    </p>
+                                    <TextWithMentions
+                                        text={post.content || 'Media-only post'}
+                                        className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200"
+                                    />
                                 </Link>
 
                                 {post.hashtags.length > 0 && (

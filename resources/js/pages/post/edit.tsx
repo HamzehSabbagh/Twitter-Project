@@ -1,4 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
+import { MentionTextarea } from '@/components/mention-textarea';
 
 const MAX_MEDIA_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -21,6 +22,7 @@ type PostFormData = {
     content: string;
     parent_id: string;
     media: File[];
+    remove_media: number[];
 };
 
 export default function EditPost({ post }: EditPostProps) {
@@ -28,6 +30,7 @@ export default function EditPost({ post }: EditPostProps) {
         content: post.content ?? '',
         parent_id: post.parent_id ? String(post.parent_id) : '',
         media: [],
+        remove_media: [],
     });
 
     function appendFiles(files: FileList | null) {
@@ -68,6 +71,7 @@ export default function EditPost({ post }: EditPostProps) {
                                 content: data.content,
                                 parent_id: data.parent_id || null,
                                 media: data.media,
+                                remove_media: data.remove_media,
                             }));
                             form.patch(`/post/${post.id}`, {
                                 forceFormData: true,
@@ -78,10 +82,10 @@ export default function EditPost({ post }: EditPostProps) {
                             <label htmlFor="content" className="text-sm font-medium">
                                 Content
                             </label>
-                            <textarea
+                            <MentionTextarea
                                 id="content"
                                 value={form.data.content}
-                                onChange={(e) => form.setData('content', e.target.value)}
+                                onChange={(value) => form.setData('content', value)}
                                 className="min-h-40 w-full rounded-xl border border-slate-300 p-3 dark:border-slate-700 dark:bg-slate-900"
                                 placeholder="Edit your post"
                             />
@@ -106,11 +110,38 @@ export default function EditPost({ post }: EditPostProps) {
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     {post.media.map((media) => (
                                         <div key={media.id} className="rounded-xl border border-slate-200 p-3 dark:border-slate-800">
-                                            <p className="text-sm font-semibold">{media.type}</p>
-                                            <p className="mt-2 break-all text-xs text-slate-500">{media.path}</p>
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold">{media.type}</p>
+                                                    <p className="mt-2 break-all text-xs text-slate-500">{media.path}</p>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        form.setData(
+                                                            'remove_media',
+                                                            form.data.remove_media.includes(media.id)
+                                                                ? form.data.remove_media.filter((id) => id !== media.id)
+                                                                : [...form.data.remove_media, media.id],
+                                                        )
+                                                    }
+                                                    className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                                                        form.data.remove_media.includes(media.id)
+                                                            ? 'bg-rose-600 text-white hover:bg-rose-500'
+                                                            : 'border border-slate-300 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-900'
+                                                    }`}
+                                                >
+                                                    {form.data.remove_media.includes(media.id) ? 'Marked for removal' : 'Remove'}
+                                                </button>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
+                                {form.data.remove_media.length > 0 && (
+                                    <p className="text-xs text-rose-500">
+                                        {form.data.remove_media.length} existing file(s) will be removed when you save.
+                                    </p>
+                                )}
                             </div>
                         )}
 

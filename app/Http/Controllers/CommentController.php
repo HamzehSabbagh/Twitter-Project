@@ -4,12 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\Hashtag;
+use App\Support\MentionManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 class CommentController extends Controller
 {
+    public function __construct(private MentionManager $mentionManager)
+    {
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -45,6 +50,7 @@ class CommentController extends Controller
         ]);
 
         $comment->hashtags()->sync($this->resolveHashtagIds($validated['content']));
+        $this->mentionManager->syncCommentMentions($comment, $request->user()->id, $validated['content']);
 
         return redirect()->back()->with('status', 'Comment created.');
     }
@@ -70,12 +76,18 @@ class CommentController extends Controller
      */
     public function update(Request $request, Comment $comment): RedirectResponse
     {
+        $user = $request->user();
+        $isAdmin = strtolower((string) $user?->role?->name) === 'admin';
+
+        abort_unless($user?->id === $comment->user_id || $isAdmin, 403);
+
         $validated = $request->validate([
             'content' => ['required', 'string'],
         ]);
 
         $comment->update($validated);
         $comment->hashtags()->sync($this->resolveHashtagIds($validated['content']));
+        $this->mentionManager->syncCommentMentions($comment, $user->id, $validated['content']);
 
         return redirect()->back()->with('status', 'Comment updated.');
     }
@@ -85,6 +97,11 @@ class CommentController extends Controller
      */
     public function destroy(Comment $comment): RedirectResponse
     {
+        $user = request()->user();
+        $isAdmin = strtolower((string) $user?->role?->name) === 'admin';
+
+        abort_unless($user?->id === $comment->user_id || $isAdmin, 403);
+
         $comment->delete();
 
         return redirect()->back()->with('status', 'Comment deleted.');

@@ -19,6 +19,7 @@ Route::get('/', function(){
 Route::get('/home', [PostController::class, 'index'])->middleware(['auth', 'verified'])->name('home');
 
 Route::middleware('auth')->group(function(){
+    Route::get('/users/suggest', [ProfileController::class, 'suggest'])->name('users.suggest');
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::get('/profile/{user:username}', [ProfileController::class, 'show'])->name('profile.show');
     Route::post('/profile/{user:username}/follow', [ProfileController::class, 'follow'])->name('profile.follow');

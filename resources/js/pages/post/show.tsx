@@ -1,5 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { useState } from 'react';
+import { MentionTextarea } from '@/components/mention-textarea';
+import { TextWithMentions } from '@/components/text-with-mentions';
 
 type UserSummary = {
     first_name: string | null;
@@ -23,6 +25,8 @@ type ReplyItem = {
     created_at: string | null;
     likes_count: number;
     liked_by_user: boolean;
+    can_edit: boolean;
+    can_delete: boolean;
     hashtags: {
         id: number;
         name: string;
@@ -36,6 +40,8 @@ type CommentItem = {
     created_at: string | null;
     likes_count: number;
     liked_by_user: boolean;
+    can_edit: boolean;
+    can_delete: boolean;
     hashtags: {
         id: number;
         name: string;
@@ -71,6 +77,10 @@ type CommentFormData = {
     post_id: string;
     content: string;
     parent_id: string;
+};
+
+type EditCommentFormData = {
+    content: string;
 };
 
 function displayName(user: UserSummary) {
@@ -131,6 +141,7 @@ function LikeButton({
 
 export default function ShowPost({ post }: ShowPostProps) {
     const [replyTarget, setReplyTarget] = useState<number | null>(null);
+    const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
     const commentForm = useForm<CommentFormData>({
         post_id: String(post.id),
         content: '',
@@ -141,10 +152,13 @@ export default function ShowPost({ post }: ShowPostProps) {
         content: '',
         parent_id: '',
     });
+    const editCommentForm = useForm<EditCommentFormData>({
+        content: '',
+    });
 
     return (
         <>
-            <Head title={`Post #${post.id}`} />
+            <Head title="Posts" />
 
             <main className="mx-auto min-h-screen w-full max-w-4xl space-y-5 px-4 py-6">
                 <header className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
@@ -195,9 +209,10 @@ export default function ShowPost({ post }: ShowPostProps) {
                     </div>
 
                     <div className="mt-4 space-y-4">
-                        <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">
-                            {post.content || 'This post has no text content.'}
-                        </p>
+                        <TextWithMentions
+                            text={post.content || 'This post has no text content.'}
+                            className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200"
+                        />
 
                         {post.parent_id && (
                             <p className="text-xs text-slate-500">Part of thread started from post #{post.parent_id}.</p>
@@ -277,9 +292,9 @@ export default function ShowPost({ post }: ShowPostProps) {
                             });
                         }}
                     >
-                        <textarea
+                        <MentionTextarea
                             value={commentForm.data.content}
-                            onChange={(e) => commentForm.setData('content', e.target.value)}
+                            onChange={(value) => commentForm.setData('content', value)}
                             className="min-h-28 w-full rounded-xl border border-slate-300 p-3 dark:border-slate-700 dark:bg-slate-900"
                             placeholder="Write a reply"
                         />
@@ -324,9 +339,10 @@ export default function ShowPost({ post }: ShowPostProps) {
                                     <span className="text-xs text-slate-400">{comment.created_at ?? 'Unknown date'}</span>
                                 </div>
 
-                                <p className="mt-3 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
-                                    {comment.content}
-                                </p>
+                                <TextWithMentions
+                                    text={comment.content}
+                                    className="mt-3 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200"
+                                />
 
                                 {comment.hashtags.length > 0 && (
                                     <div className="mt-3 flex flex-wrap gap-2">
@@ -358,12 +374,81 @@ export default function ShowPost({ post }: ShowPostProps) {
                                             setReplyTarget(comment.id);
                                             replyForm.setData('parent_id', String(comment.id));
                                             replyForm.setData('content', '');
+                                            setEditingCommentId(null);
                                         }}
                                         className="font-semibold text-cyan-600 hover:underline"
                                     >
                                         Reply
                                     </button>
+                                    {comment.can_edit && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEditingCommentId(comment.id);
+                                                editCommentForm.setData('content', comment.content);
+                                                editCommentForm.clearErrors();
+                                                setReplyTarget(null);
+                                            }}
+                                            className="font-semibold text-slate-600 hover:underline dark:text-slate-300"
+                                        >
+                                            Edit
+                                        </button>
+                                    )}
+                                    {comment.can_delete && (
+                                        <button
+                                            type="button"
+                                            onClick={() => router.delete(`/comment/${comment.id}`, { preserveScroll: true })}
+                                            className="font-semibold text-rose-600 hover:underline"
+                                        >
+                                            Delete
+                                        </button>
+                                    )}
                                 </div>
+
+                                {editingCommentId === comment.id && (
+                                    <form
+                                        className="mt-4 space-y-3 rounded-xl bg-slate-50 p-3 dark:bg-slate-900"
+                                        onSubmit={(e) => {
+                                            e.preventDefault();
+                                            editCommentForm.patch(`/comment/${comment.id}`, {
+                                                preserveScroll: true,
+                                                onSuccess: () => {
+                                                    setEditingCommentId(null);
+                                                    editCommentForm.reset();
+                                                },
+                                            });
+                                        }}
+                                    >
+                                        <MentionTextarea
+                                            value={editCommentForm.data.content}
+                                            onChange={(value) => editCommentForm.setData('content', value)}
+                                            className="min-h-24 w-full rounded-xl border border-slate-300 p-3 dark:border-slate-700 dark:bg-slate-950"
+                                            placeholder="Edit comment"
+                                        />
+                                        {Object.values(editCommentForm.errors).length > 0 && (
+                                            <p className="text-sm text-rose-500">{Object.values(editCommentForm.errors)[0]}</p>
+                                        )}
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                type="submit"
+                                                disabled={editCommentForm.processing}
+                                                className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
+                                            >
+                                                {editCommentForm.processing ? 'Saving...' : 'Save edit'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditingCommentId(null);
+                                                    editCommentForm.reset();
+                                                }}
+                                                className="text-xs font-semibold text-slate-500"
+                                            >
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </form>
+                                )}
 
                                 {replyTarget === comment.id && (
                                     <form
@@ -379,9 +464,9 @@ export default function ShowPost({ post }: ShowPostProps) {
                                             });
                                         }}
                                     >
-                                        <textarea
+                                        <MentionTextarea
                                             value={replyForm.data.content}
-                                            onChange={(e) => replyForm.setData('content', e.target.value)}
+                                            onChange={(value) => replyForm.setData('content', value)}
                                             className="min-h-24 w-full rounded-xl border border-slate-300 p-3 dark:border-slate-700 dark:bg-slate-950"
                                             placeholder="Write a reply"
                                         />
@@ -424,9 +509,10 @@ export default function ShowPost({ post }: ShowPostProps) {
                                                         {reply.created_at ?? 'Unknown date'}
                                                     </span>
                                                 </div>
-                                                <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">
-                                                    {reply.content}
-                                                </p>
+                                                <TextWithMentions
+                                                    text={reply.content}
+                                                    className="mt-2 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200"
+                                                />
                                                 {reply.hashtags.length > 0 && (
                                                     <div className="mt-3 flex flex-wrap gap-2">
                                                         {reply.hashtags.map((hashtag) => (
@@ -456,12 +542,81 @@ export default function ShowPost({ post }: ShowPostProps) {
                                                             setReplyTarget(reply.id);
                                                             replyForm.setData('parent_id', String(reply.id));
                                                             replyForm.setData('content', '');
+                                                            setEditingCommentId(null);
                                                         }}
                                                         className="font-semibold text-cyan-600 hover:underline"
                                                     >
                                                         Reply
                                                     </button>
+                                                    {reply.can_edit && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setEditingCommentId(reply.id);
+                                                                editCommentForm.setData('content', reply.content);
+                                                                editCommentForm.clearErrors();
+                                                                setReplyTarget(null);
+                                                            }}
+                                                            className="font-semibold text-slate-600 hover:underline dark:text-slate-300"
+                                                        >
+                                                            Edit
+                                                        </button>
+                                                    )}
+                                                    {reply.can_delete && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => router.delete(`/comment/${reply.id}`, { preserveScroll: true })}
+                                                            className="font-semibold text-rose-600 hover:underline"
+                                                        >
+                                                            Delete
+                                                        </button>
+                                                    )}
                                                 </div>
+
+                                                {editingCommentId === reply.id && (
+                                                    <form
+                                                        className="mt-4 space-y-3 rounded-xl bg-white p-3 dark:bg-slate-950"
+                                                        onSubmit={(e) => {
+                                                            e.preventDefault();
+                                                            editCommentForm.patch(`/comment/${reply.id}`, {
+                                                                preserveScroll: true,
+                                                                onSuccess: () => {
+                                                                    setEditingCommentId(null);
+                                                                    editCommentForm.reset();
+                                                                },
+                                                            });
+                                                        }}
+                                                    >
+                                                        <MentionTextarea
+                                                            value={editCommentForm.data.content}
+                                                            onChange={(value) => editCommentForm.setData('content', value)}
+                                                            className="min-h-24 w-full rounded-xl border border-slate-300 p-3 dark:border-slate-700 dark:bg-slate-900"
+                                                            placeholder="Edit reply"
+                                                        />
+                                                        {Object.values(editCommentForm.errors).length > 0 && (
+                                                            <p className="text-sm text-rose-500">{Object.values(editCommentForm.errors)[0]}</p>
+                                                        )}
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                type="submit"
+                                                                disabled={editCommentForm.processing}
+                                                                className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-700 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-slate-300"
+                                                            >
+                                                                {editCommentForm.processing ? 'Saving...' : 'Save edit'}
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setEditingCommentId(null);
+                                                                    editCommentForm.reset();
+                                                                }}
+                                                                className="text-xs font-semibold text-slate-500"
+                                                            >
+                                                                Cancel
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                )}
 
                                                 {replyTarget === reply.id && (
                                                     <form
@@ -477,9 +632,9 @@ export default function ShowPost({ post }: ShowPostProps) {
                                                             });
                                                         }}
                                                     >
-                                                        <textarea
+                                                        <MentionTextarea
                                                             value={replyForm.data.content}
-                                                            onChange={(e) => replyForm.setData('content', e.target.value)}
+                                                            onChange={(value) => replyForm.setData('content', value)}
                                                             className="min-h-24 w-full rounded-xl border border-slate-300 p-3 dark:border-slate-700 dark:bg-slate-900"
                                                             placeholder="Write a reply"
                                                         />

@@ -42,4 +42,9 @@ class Comment extends Model
     {
         return $this->belongsToMany(Hashtag::class, 'hashtag_comment');
     }
+
+    public function mentions()
+    {
+        return $this->hasMany(Mention::class);
+    }
 }

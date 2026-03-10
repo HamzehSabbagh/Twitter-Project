@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'ffmpeg_binary' => env('FFMPEG_BINARY', 'ffmpeg'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -83,6 +85,50 @@ class ProfileController extends Controller
         $viewer->following()->detach($user->id);
 
         return redirect()->back()->with('status', 'User unfollowed.');
+    }
+
+    public function suggest(Request $request): JsonResponse
+    {
+        $viewer = $request->user();
+        $query = trim((string) $request->query('q', ''));
+
+        $users = User::query()
+            ->select(['id', 'first_name', 'last_name', 'username'])
+            ->where('id', '!=', $viewer->id)
+            ->withExists([
+                'followers as followed_by_viewer' => fn ($builder) => $builder->where('follower_id', $viewer->id),
+            ])
+            ->when($query !== '', function ($builder) use ($query) {
+                $builder->where(function ($search) use ($query) {
+                    $search
+                        ->where('username', 'like', $query.'%')
+                        ->orWhere('username', 'like', '%'.$query.'%')
+                        ->orWhere('first_name', 'like', '%'.$query.'%')
+                        ->orWhere('last_name', 'like', '%'.$query.'%')
+                        ->orWhere(DB::raw("TRIM(CONCAT(first_name, ' ', last_name))"), 'like', '%'.$query.'%');
+                });
+            })
+            ->orderByDesc('followed_by_viewer');
+
+        if ($query !== '') {
+            $users
+                ->orderByRaw('CASE WHEN username LIKE ? THEN 0 ELSE 1 END', [$query.'%'])
+                ->orderByRaw('CASE WHEN username = ? THEN 0 ELSE 1 END', [$query]);
+        }
+
+        $users = $users
+            ->orderBy('username')
+            ->limit(8)
+            ->get();
+
+        return response()->json(
+            $users->map(fn ($user) => [
+                'id' => $user->id,
+                'username' => $user->username,
+                'name' => trim($user->first_name.' '.$user->last_name) ?: $user->username,
+                'followed_by_viewer' => (bool) $user->followed_by_viewer,
+            ])->values()
+        );
     }
 
     public function edit(): Response

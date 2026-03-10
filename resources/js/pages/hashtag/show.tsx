@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { TextWithMentions } from '@/components/text-with-mentions';
 
 type HashtagPageProps = {
     hashtag: {
@@ -120,9 +121,10 @@ export default function ShowHashtag({ hashtag }: HashtagPageProps) {
                             </div>
 
                             <Link href={`/post/${post.id}`} className="mt-3 block">
-                                <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200">
-                                    {post.content || 'Media-only post'}
-                                </p>
+                                <TextWithMentions
+                                    text={post.content || 'Media-only post'}
+                                    className="whitespace-pre-wrap text-sm leading-6 text-slate-700 dark:text-slate-200"
+                                />
                             </Link>
 
                             {post.hashtags.length > 0 && (

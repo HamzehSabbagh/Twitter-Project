@@ -76,6 +76,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Repost::class);
     }
 
+    public function mentionsReceived()
+    {
+        return $this->hasMany(Mention::class, 'mentioned_user_id');
+    }
+
+    public function mentionsMade()
+    {
+        return $this->hasMany(Mention::class, 'mentioner_id');
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *

@@ -1,4 +1,5 @@
 import { Head, useForm } from '@inertiajs/react';
+import { MentionTextarea } from '@/components/mention-textarea';
 
 const MAX_MEDIA_SIZE_BYTES = 50 * 1024 * 1024;
 
@@ -61,10 +62,10 @@ export default function CreatePost() {
                             <label htmlFor="content" className="text-sm font-medium">
                                 Content
                             </label>
-                            <textarea
+                            <MentionTextarea
                                 id="content"
                                 value={form.data.content}
-                                onChange={(e) => form.setData('content', e.target.value)}
+                                onChange={(value) => form.setData('content', value)}
                                 className="min-h-40 w-full rounded-xl border border-slate-300 p-3 dark:border-slate-700 dark:bg-slate-900"
                                 placeholder="What is happening?"
                             />

@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { TextWithMentions } from '@/components/text-with-mentions';
 
 type HomeProps = {
     auth?: {
@@ -252,9 +253,10 @@ export default function Home({ auth, posts, trendingHashtags }: HomeProps) {
                                     </div>
 
                                     <Link href={`/post/${post.id}`} className="mt-3 block">
-                                        <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-100">
-                                            {post.content || 'Media-only post'}
-                                        </p>
+                                        <TextWithMentions
+                                            text={post.content || 'Media-only post'}
+                                            className="whitespace-pre-wrap text-sm leading-6 text-slate-700 transition hover:text-slate-950 dark:text-slate-300 dark:hover:text-slate-100"
+                                        />
                                     </Link>
 
                                     {post.parent_id && (
