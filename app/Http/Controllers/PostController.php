@@ -6,6 +6,7 @@ use App\Models\Hashtag;
 use App\Models\Post;
 use App\Models\PostMedia;
 use App\Models\Repost;
+use App\Models\User;
 use App\Support\MentionManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -93,6 +94,96 @@ class PostController extends Controller
                 'id' => $hashtag->id,
                 'name' => $hashtag->name,
                 'posts_count' => $hashtag->posts_count,
+            ])->values(),
+        ]);
+    }
+
+    public function explore(): Response
+    {
+        $viewer = request()->user();
+        $userId = $viewer?->id;
+        $isAdmin = strtolower((string) $viewer?->role?->name) === 'admin';
+
+        $posts = Post::query()
+            ->with([
+                'user:id,first_name,last_name,username',
+                'media:id,post_id,type,path,mime_type,duration_seconds,size_bytes',
+                'hashtags:id,name',
+                'likes' => fn ($query) => $query
+                    ->where('user_id', $userId)
+                    ->select('id', 'user_id', 'post_id'),
+                'reposts' => fn ($query) => $query
+                    ->where('user_id', $userId)
+                    ->select('id', 'user_id', 'post_id'),
+            ])
+            ->withCount(['likes', 'comments', 'reposts'])
+            ->orderByDesc(DB::raw('(likes_count + comments_count + reposts_count)'))
+            ->latest()
+            ->limit(24)
+            ->get();
+
+        $trendingHashtags = Hashtag::query()
+            ->whereNotNull('name')
+            ->where('name', '!=', '')
+            ->has('posts')
+            ->withCount('posts')
+            ->orderByDesc('posts_count')
+            ->limit(8)
+            ->get();
+
+        $suggestedUsers = User::query()
+            ->select(['id', 'first_name', 'last_name', 'username'])
+            ->where('id', '!=', $userId)
+            ->whereDoesntHave('followers', fn ($query) => $query->where('follower_id', $userId))
+            ->withCount(['followers', 'posts'])
+            ->orderByDesc('followers_count')
+            ->orderByDesc('posts_count')
+            ->limit(6)
+            ->get();
+
+        return Inertia::render('explore', [
+            'posts' => $posts->map(fn ($post) => [
+                'id' => $post->id,
+                'content' => $post->content,
+                'parent_id' => $post->parent_id,
+                'created_at' => $post->created_at?->toDateTimeString(),
+                'likes_count' => $post->likes_count,
+                'comments_count' => $post->comments_count,
+                'reposts_count' => $post->reposts_count,
+                'liked_by_user' => $post->likes->isNotEmpty(),
+                'reposted_by_user' => $post->reposts->isNotEmpty(),
+                'can_edit' => $post->user_id === $userId,
+                'can_delete' => $post->user_id === $userId || $isAdmin,
+                'user' => [
+                    'id' => $post->user?->id,
+                    'first_name' => $post->user?->first_name,
+                    'last_name' => $post->user?->last_name,
+                    'username' => $post->user?->username,
+                ],
+                'hashtags' => $post->hashtags->map(fn ($hashtag) => [
+                    'id' => $hashtag->id,
+                    'name' => $hashtag->name,
+                ])->values(),
+                'media' => $post->media->map(fn ($media) => [
+                    'id' => $media->id,
+                    'type' => $media->type,
+                    'path' => $media->path,
+                    'url' => Storage::disk('public')->url($media->path),
+                    'mime_type' => $media->mime_type,
+                ])->values(),
+            ])->values(),
+            'trendingHashtags' => $trendingHashtags->map(fn ($hashtag) => [
+                'id' => $hashtag->id,
+                'name' => $hashtag->name,
+                'posts_count' => $hashtag->posts_count,
+            ])->values(),
+            'suggestedUsers' => $suggestedUsers->map(fn ($user) => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'username' => $user->username,
+                'followers_count' => $user->followers_count,
+                'posts_count' => $user->posts_count,
             ])->values(),
         ]);
     }

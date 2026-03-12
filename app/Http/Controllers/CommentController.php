@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Comment;
 use App\Models\Hashtag;
+use App\Notifications\SocialNotification;
 use App\Support\MentionManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,6 +52,24 @@ class CommentController extends Controller
 
         $comment->hashtags()->sync($this->resolveHashtagIds($validated['content']));
         $this->mentionManager->syncCommentMentions($comment, $request->user()->id, $validated['content']);
+
+        if (($comment->parent?->user_id ?? null) && $comment->parent->user_id !== $request->user()->id) {
+            $comment->parent->user?->notify(new SocialNotification([
+                'type' => 'reply',
+                'title' => 'New reply',
+                'message' => sprintf('@%s replied to your comment.', $request->user()->username),
+                'url' => "/post/{$comment->post_id}",
+                'actor_username' => $request->user()->username,
+            ]));
+        } elseif ($comment->post?->user_id !== $request->user()->id) {
+            $comment->post?->user?->notify(new SocialNotification([
+                'type' => 'comment',
+                'title' => 'New comment',
+                'message' => sprintf('@%s commented on your post.', $request->user()->username),
+                'url' => "/post/{$comment->post_id}",
+                'actor_username' => $request->user()->username,
+            ]));
+        }
 
         return redirect()->back()->with('status', 'Comment created.');
     }

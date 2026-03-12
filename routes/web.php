@@ -3,6 +3,7 @@
 use App\Http\Controllers\CommentController;
 use App\Http\Controllers\HashtagController;
 use App\Http\Controllers\LikeController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RepostController;
@@ -17,9 +18,16 @@ Route::get('/', function(){
 })->middleware('guest')->name('guest.home');
 
 Route::get('/home', [PostController::class, 'index'])->middleware(['auth', 'verified'])->name('home');
+Route::get('/explore', [PostController::class, 'explore'])->middleware(['auth', 'verified'])->name('explore');
 
 Route::middleware('auth')->group(function(){
+    Route::get('/settings', function () {
+        return Inertia::render('settings');
+    })->name('settings');
     Route::get('/users/suggest', [ProfileController::class, 'suggest'])->name('users.suggest');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
     Route::get('/profile/edit', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::get('/profile/{user:username}', [ProfileController::class, 'show'])->name('profile.show');
     Route::post('/profile/{user:username}/follow', [ProfileController::class, 'follow'])->name('profile.follow');

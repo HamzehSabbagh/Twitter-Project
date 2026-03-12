@@ -6,6 +6,7 @@ use App\Models\Comment;
 use App\Models\Like;
 use App\Models\Post;
 use App\Models\CommentLike;
+use App\Notifications\SocialNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -13,10 +14,20 @@ class LikeController extends Controller
 {
     public function storePost(Request $request, Post $post): RedirectResponse
     {
-        Like::query()->firstOrCreate([
+        $like = Like::query()->firstOrCreate([
             'user_id' => $request->user()->id,
             'post_id' => $post->id,
         ]);
+
+        if ($like->wasRecentlyCreated && $post->user_id !== $request->user()->id) {
+            $post->user?->notify(new SocialNotification([
+                'type' => 'like',
+                'title' => 'Post liked',
+                'message' => sprintf('@%s liked your post.', $request->user()->username),
+                'url' => "/post/{$post->id}",
+                'actor_username' => $request->user()->username,
+            ]));
+        }
 
         return redirect()->back()->with('status', 'Post liked.');
     }
@@ -33,10 +44,20 @@ class LikeController extends Controller
 
     public function storeComment(Request $request, Comment $comment): RedirectResponse
     {
-        CommentLike::query()->firstOrCreate([
+        $like = CommentLike::query()->firstOrCreate([
             'user_id' => $request->user()->id,
             'comment_id' => $comment->id,
         ]);
+
+        if ($like->wasRecentlyCreated && $comment->user_id !== $request->user()->id) {
+            $comment->user?->notify(new SocialNotification([
+                'type' => 'comment_like',
+                'title' => 'Comment liked',
+                'message' => sprintf('@%s liked your comment.', $request->user()->username),
+                'url' => "/post/{$comment->post_id}",
+                'actor_username' => $request->user()->username,
+            ]));
+        }
 
         return redirect()->back()->with('status', 'Comment liked.');
     }

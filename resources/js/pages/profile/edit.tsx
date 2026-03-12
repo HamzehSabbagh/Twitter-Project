@@ -10,6 +10,7 @@ type EditProfileProps = {
         birth_date: string;
         location: string | null;
         bio: string | null;
+        is_profile_public: boolean;
         picture_url: string;
         cover_url: string;
     };
@@ -26,6 +27,7 @@ export default function Edit({ user }: EditProfileProps) {
         birth_date: user.birth_date ?? '',
         location: user.location ?? '',
         bio: user.bio ?? '',
+        is_profile_public: user.is_profile_public,
         picture: null as File | null,
         cover: null as File | null,
     });
@@ -149,6 +151,30 @@ export default function Edit({ user }: EditProfileProps) {
                             placeholder="Bio (optional)"
                             rows={3}
                         />
+
+                        <label className="flex items-start justify-between gap-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+                            <div>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Public profile</p>
+                                <p className="mt-1 text-sm text-slate-500">
+                                    When turned off, only you and admins can view your full profile.
+                                </p>
+                            </div>
+                            <button
+                                type="button"
+                                role="switch"
+                                aria-checked={profileForm.data.is_profile_public}
+                                onClick={() => profileForm.setData('is_profile_public', !profileForm.data.is_profile_public)}
+                                className={`relative inline-flex h-7 w-14 items-center rounded-full transition ${
+                                    profileForm.data.is_profile_public ? 'bg-cyan-500' : 'bg-slate-300 dark:bg-slate-700'
+                                }`}
+                            >
+                                <span
+                                    className={`inline-block h-5 w-5 rounded-full bg-white transition ${
+                                        profileForm.data.is_profile_public ? 'translate-x-8' : 'translate-x-1'
+                                    }`}
+                                />
+                            </button>
+                        </label>
 
                         <div className="grid gap-3 sm:grid-cols-2">
                             <div className="space-y-1 text-sm">

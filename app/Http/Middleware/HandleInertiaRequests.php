@@ -48,6 +48,7 @@ class HandleInertiaRequests extends Middleware
                     'email' => $user->email,
                     'role_name' => $user->role?->name,
                     'role'=> $user->load('role:id,name'),
+                    'unread_notifications_count' => $user->unreadNotifications()->count(),
                     'picture' => route('home.image', ['type' => 'picture']),
                     'cover' => route('home.image', ['type' => 'cover']),
                 ] : null,

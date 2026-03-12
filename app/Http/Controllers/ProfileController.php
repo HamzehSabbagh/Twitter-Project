@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Notifications\SocialNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,20 @@ class ProfileController extends Controller
     {
         $viewer = request()->user();
         $isAdmin = strtolower((string) $viewer?->role?->name) === 'admin';
+        $isOwner = $viewer?->id === $user->id;
+
+        if (! $user->is_profile_public && ! $isOwner && ! $isAdmin) {
+            return Inertia::render('profile/private', [
+                'profile' => [
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'username' => $user->username,
+                    'picture_url' => route('profile.image', ['user' => $user->username, 'type' => 'picture']),
+                    'is_following' => $viewer ? $viewer->following()->where('users.id', $user->id)->exists() : false,
+                ],
+            ]);
+        }
+
         $user->load([
             'role:id,name',
             'posts' => fn ($query) => $query
@@ -41,8 +56,9 @@ class ProfileController extends Controller
                 'role_name' => $user->role?->name,
                 'picture_url' => route('profile.image', ['user' => $user->username, 'type' => 'picture']),
                 'cover_url' => route('profile.image', ['user' => $user->username, 'type' => 'cover']),
-                'is_owner' => $viewer?->id === $user->id,
+                'is_owner' => $isOwner,
                 'is_following' => $viewer ? $viewer->following()->where('users.id', $user->id)->exists() : false,
+                'is_profile_public' => (bool) $user->is_profile_public,
                 'followers_count' => $user->followers_count,
                 'following_count' => $user->following_count,
                 'posts' => $user->posts->map(fn ($post) => [
@@ -72,7 +88,18 @@ class ProfileController extends Controller
         $viewer = $request->user();
         abort_if($viewer->id === $user->id, 422);
 
+        $alreadyFollowing = $viewer->following()->where('users.id', $user->id)->exists();
         $viewer->following()->syncWithoutDetaching([$user->id]);
+
+        if (! $alreadyFollowing) {
+            $user->notify(new SocialNotification([
+                'type' => 'follow',
+                'title' => 'New follower',
+                'message' => sprintf('@%s started following you.', $viewer->username),
+                'url' => "/profile/{$viewer->username}",
+                'actor_username' => $viewer->username,
+            ]));
+        }
 
         return redirect()->back()->with('status', 'User followed.');
     }
@@ -144,6 +171,7 @@ class ProfileController extends Controller
                 'birth_date' => $user->birth_date?->toDateString(),
                 'location' => $user->location,
                 'bio' => $user->bio,
+                'is_profile_public' => (bool) $user->is_profile_public,
                 'role_name' => $user->role?->name,
                 'picture_url' => route('home.image', ['type' => 'picture']),
                 'cover_url' => route('home.image', ['type' => 'cover']),
@@ -175,6 +203,7 @@ class ProfileController extends Controller
             'birth_date' => ['required', 'date', 'before_or_equal:' . now()->subYears(18)->toDateString()],
             'location' => ['nullable', 'string', 'max:100'],
             'bio' => ['nullable', 'string', 'max:160'],
+            'is_profile_public' => ['required', 'boolean'],
         ]);
 
         $updateData = $validated;

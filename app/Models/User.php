@@ -34,6 +34,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'bio',
         'role_id',
         'username',
+        'is_profile_public',
     ];
 
     public function following()
@@ -112,6 +113,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'birth_date' => 'date',
+            'is_profile_public' => 'boolean',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
         ];

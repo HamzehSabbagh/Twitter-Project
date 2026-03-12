@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useAppSettings } from '@/components/app-settings-provider';
 import { TextWithMentions } from '@/components/text-with-mentions';
 
 type HomeProps = {
@@ -10,6 +11,7 @@ type HomeProps = {
             picture?: string;
             email: string;
             role_name?: string | null;
+            unread_notifications_count?: number;
         } | null;
     };
     posts: {
@@ -102,6 +104,7 @@ function LikeButton({
 
 export default function Home({ auth, posts, trendingHashtags }: HomeProps) {
     const logoutForm = useForm({});
+    const { t } = useAppSettings();
     const userDisplayName = auth?.user ? `${auth.user.first_name} ${auth.user.last_name}`.trim() : 'Guest';
     const isAdmin = (auth?.user?.role_name ?? '').toLowerCase() === 'admin';
     const accentTextClass = isAdmin ? 'text-rose-600 dark:text-rose-400' : 'text-cyan-600 dark:text-cyan-400';
@@ -118,7 +121,7 @@ export default function Home({ auth, posts, trendingHashtags }: HomeProps) {
 
     return (
         <>
-            <Head title="Home" />
+            <Head title={t('home', 'Home')} />
 
             <main className={`mx-auto grid min-h-screen max-w-7xl grid-cols-1 gap-5 px-4 py-6 lg:grid-cols-[260px_1fr_320px] ${pageToneClass}`}>
                 <aside className="space-y-5">
@@ -146,36 +149,41 @@ export default function Home({ auth, posts, trendingHashtags }: HomeProps) {
                                     href={`/profile/${auth?.user?.username ?? ''}`}
                                     className="block rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
                                 >
-                                    Profile
+                                    {t('profile', 'Profile')}
                                 </Link>
                                 <a
-                                    href="#"
-                                    className="block rounded-xl px-3 py-2 text-sm text-slate-400"
+                                    href="/settings"
+                                    className="block rounded-xl px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900"
                                 >
-                                    Settings
+                                    {t('settings', 'Settings')}
                                 </a>
                                 <button
                                     type="button"
                                     onClick={() => logoutForm.post('/logout')}
                                     className="block w-full rounded-xl px-3 py-2 text-left text-sm text-rose-600 transition hover:bg-rose-50 dark:hover:bg-rose-950/20"
                                 >
-                                    Log out
+                                    {t('logout', 'Log out')}
                                 </button>
                             </div>
                         </div>
                     </section>
 
-                    <section className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Navigation</h2>
+                    <section className="sticky top-6 rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('navigation', 'Navigation')}</h2>
                         <nav className="mt-4 space-y-2 text-sm">
                             <a href="/home" className="block rounded-xl bg-slate-100 px-3 py-2 font-medium dark:bg-slate-900">
-                                Home
+                                {t('home', 'Home')}
                             </a>
-                            <a href="#" className="block rounded-xl px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-900">
-                                Explore
+                            <a href="/explore" className="block rounded-xl px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-900">
+                                {t('explore', 'Explore')}
                             </a>
-                            <a href="#" className="block rounded-xl px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-900">
-                                Notifications
+                            <a href="/notifications" className="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-900">
+                                <span>{t('notifications', 'Notifications')}</span>
+                                {(auth?.user?.unread_notifications_count ?? 0) > 0 && (
+                                    <span className="rounded-full bg-cyan-500 px-2 py-0.5 text-xs font-semibold text-slate-950">
+                                        {auth?.user?.unread_notifications_count}
+                                    </span>
+                                )}
                             </a>
                         </nav>
                     </section>
@@ -185,12 +193,12 @@ export default function Home({ auth, posts, trendingHashtags }: HomeProps) {
                     <header className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <p className={`text-sm uppercase tracking-[0.2em] ${accentTextClass}`}>Timeline</p>
+                                <p className={`text-sm uppercase tracking-[0.2em] ${accentTextClass}`}>{t('timeline', 'Timeline')}</p>
                                 <h1 className="mt-2 text-2xl font-semibold">
                                     {auth?.user ? `@${auth.user.username}` : 'Your timeline'}
                                 </h1>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Share updates, media, and threaded conversations from one place.
+                                    {t('timeline_description', 'Share updates, media, and threaded conversations from one place.')}
                                 </p>
                             </div>
 
@@ -200,12 +208,6 @@ export default function Home({ auth, posts, trendingHashtags }: HomeProps) {
                                         <p className="text-sm font-semibold">{userDisplayName}</p>
                                         <p className="text-xs text-slate-500">{auth.user.email}</p>
                                     </div>
-                                    <Link
-                                        href="/post/create"
-                                        className={`rounded-full px-5 py-3 text-sm font-semibold transition ${accentButtonClass}`}
-                                    >
-                                        New post
-                                    </Link>
                                 </div>
                             )}
                         </div>
@@ -214,16 +216,16 @@ export default function Home({ auth, posts, trendingHashtags }: HomeProps) {
                     <div className={`rounded-[28px] border p-5 shadow-sm ${createCardClass}`}>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Create a post</p>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{t('create_post', 'Create a post')}</p>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Open the composer to add text, pictures, videos, and audio.
+                                    {t('create_post_description', 'Open the composer to add text, pictures, videos, and audio.')}
                                 </p>
                             </div>
                             <Link
                                 href="/post/create"
                                 className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                             >
-                                New post
+                                {t('new_post', 'New post')}
                             </Link>
                         </div>
                     </div>
@@ -343,11 +345,11 @@ export default function Home({ auth, posts, trendingHashtags }: HomeProps) {
                 </section>
 
                 <aside className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Discover</h2>
+                    <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{t('discover', 'Discover')}</h2>
                     <div className="mt-4 space-y-2 text-sm">
                         {trendingHashtags.length === 0 && (
                             <div className="rounded-lg border border-dashed border-slate-200 p-3 text-slate-500 dark:border-slate-800">
-                                No hashtags yet.
+                                {t('no_hashtags', 'No hashtags yet.')}
                             </div>
                         )}
                         {trendingHashtags.map((hashtag) => (
