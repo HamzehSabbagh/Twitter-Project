@@ -8,6 +8,7 @@ use App\Models\PostMedia;
 use App\Models\Repost;
 use App\Models\User;
 use App\Support\MentionManager;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -32,6 +33,8 @@ class PostController extends Controller
     public function index(): Response
     {
         $userId = request()->user()?->id;
+        /** @var FilesystemAdapter $publicDisk */
+        $publicDisk = Storage::disk('public');
         $isAdmin = strtolower((string) request()->user()?->role?->name) === 'admin';
 
         $posts = Post::query()
@@ -86,7 +89,7 @@ class PostController extends Controller
                     'id' => $media->id,
                     'type' => $media->type,
                     'path' => $media->path,
-                    'url' => Storage::disk('public')->url($media->path),
+                    'url' => $publicDisk->url($media->path),
                     'mime_type' => $media->mime_type,
                 ])->values(),
             ])->values(),
@@ -102,6 +105,8 @@ class PostController extends Controller
     {
         $viewer = request()->user();
         $userId = $viewer?->id;
+        /** @var FilesystemAdapter $publicDisk */
+        $publicDisk = Storage::disk('public');
         $isAdmin = strtolower((string) $viewer?->role?->name) === 'admin';
 
         $posts = Post::query()
@@ -168,7 +173,7 @@ class PostController extends Controller
                     'id' => $media->id,
                     'type' => $media->type,
                     'path' => $media->path,
-                    'url' => Storage::disk('public')->url($media->path),
+                    'url' => $publicDisk->url($media->path),
                     'mime_type' => $media->mime_type,
                 ])->values(),
             ])->values(),
@@ -224,6 +229,8 @@ class PostController extends Controller
     public function show(Post $post): Response
     {
         $userId = request()->user()?->id;
+        /** @var FilesystemAdapter $publicDisk */
+        $publicDisk = Storage::disk('public');
         $isAdmin = strtolower((string) request()->user()?->role?->name) === 'admin';
 
         $post->load([
@@ -286,7 +293,7 @@ class PostController extends Controller
                     'id' => $media->id,
                     'type' => $media->type,
                     'path' => $media->path,
-                    'url' => Storage::disk('public')->url($media->path),
+                    'url' => $publicDisk->url($media->path),
                     'mime_type' => $media->mime_type,
                     'duration_seconds' => $media->duration_seconds,
                     'size_bytes' => $media->size_bytes,
@@ -337,6 +344,8 @@ class PostController extends Controller
     public function edit(Post $post): Response
     {
         abort_unless(request()->user()?->id === $post->user_id, 403);
+        /** @var FilesystemAdapter $publicDisk */
+        $publicDisk = Storage::disk('public');
 
         $post->load('media:id,post_id,type,path,mime_type,duration_seconds,size_bytes');
 
@@ -349,7 +358,7 @@ class PostController extends Controller
                     'id' => $media->id,
                     'type' => $media->type,
                     'path' => $media->path,
-                    'url' => Storage::disk('public')->url($media->path),
+                    'url' => $publicDisk->url($media->path),
                     'mime_type' => $media->mime_type,
                 ])->values(),
             ],

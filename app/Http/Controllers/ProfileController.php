@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Notifications\SocialNotification;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,8 @@ class ProfileController extends Controller
     public function show(User $user): Response
     {
         $viewer = request()->user();
+        /** @var FilesystemAdapter $publicDisk */
+        $publicDisk = Storage::disk('public');
         $isAdmin = strtolower((string) $viewer?->role?->name) === 'admin';
         $isOwner = $viewer?->id === $user->id;
 
@@ -76,7 +79,7 @@ class ProfileController extends Controller
                     'media' => $post->media->map(fn ($media) => [
                         'id' => $media->id,
                         'type' => $media->type,
-                        'url' => Storage::disk('public')->url($media->path),
+                        'url' => $publicDisk->url($media->path),
                     ])->values(),
                 ])->values(),
             ],

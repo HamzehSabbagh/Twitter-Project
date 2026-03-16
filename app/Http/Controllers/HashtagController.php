@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Hashtag;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -12,6 +13,8 @@ class HashtagController extends Controller
     public function show(Hashtag $hashtag): Response
     {
         $userId = request()->user()?->id;
+        /** @var FilesystemAdapter $publicDisk */
+        $publicDisk = Storage::disk('public');
         $isAdmin = strtolower((string) request()->user()?->role?->name) === 'admin';
         $hashtag->load([
             'posts' => fn ($query) => $query
@@ -58,7 +61,7 @@ class HashtagController extends Controller
                         'id' => $media->id,
                         'type' => $media->type,
                         'path' => $media->path,
-                        'url' => Storage::disk('public')->url($media->path),
+                        'url' => $publicDisk->url($media->path),
                         'mime_type' => $media->mime_type,
                     ])->values(),
                 ])->values(),
